@@ -4,8 +4,6 @@
 
 RaMona is a command line application which scrapes RSS data from the government law publishing website of "rada.gov.ua" for the latest law updates. The application filters the new laws based on words contained in their title or description. The list of these words can be specified with the triggers parameter followed by a list of space-separated words.
 
-Optionally, the application can also be configured to send notifications about new laws to a Telegram chat by specifying the RANO_TELEGRAM_BOT_TOKEN and RANO_TELEGRAM_CHAT_ID.
-
 ## Installation
 To install the app follow this steps:
 
