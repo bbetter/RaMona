@@ -20,9 +20,7 @@ const feedUrl = "https://feeds.feedburner.com/gov/gnjU"
 func main() {
 
     execPath, _ := os.Executable()
-    fmt.Println(execPath)
     logFilePath := fmt.Sprintf("%s\\logs.txt",filepath.Dir(execPath))
-    fmt.Println(logFilePath)
 
     //setup logging
     f, err := os.OpenFile(logFilePath, os.O_WRONLY | os.O_CREATE | os.O_APPEND, 0666)
@@ -33,8 +31,8 @@ func main() {
     log.SetOutput(f)
 
     // read variables
-    botToken, chatId := readEnvVars()
-    triggers := readParams()
+    botToken := readEnvVars()
+    triggers := readFlags()
 
     logWithCurrentTime("\n Завантаження даних.")
 
@@ -55,23 +53,22 @@ func main() {
     message := strings.Join(messages,"\n\n")
     fmt.Print(message)
 
-    if len(botToken) == 0 || len(chatId) == 0 {
+    if len(botToken) == 0 {
         logWithCurrentTime("Відсутні змінні середовища для налаштування сповіщень.")
         return
     }
 
-    sendToTelegram(botToken, chatId, message)
+    sendToTelegram(botToken, message)
 }
 
-func readEnvVars() (botToken string, chatId string){
+func readEnvVars() (botToken string){
 
     botToken = os.Getenv("RANO_TELEGRAM_BOT_TOKEN")
-    chatId = os.Getenv("RANO_TELEGRAM_CHAT_ID")
 
     return
 }
 
-func readParams() (triggers []string){
+func readFlags() (triggers []string){
     triggersStr := flag.String("triggers", "", "список слів як можна використовувати для пошуку")
     flag.Parse()
     triggers = strings.Split(*triggersStr, " ")
@@ -108,23 +105,47 @@ func filterByTriggers(items [] *gofeed.Item, triggers [] string) [] *gofeed.Item
     })
 }
 
-func sendToTelegram(botToken string, chatId string,  message string)  {
+func sendToTelegram(botToken string,  message string)  {
+
 
     baseUrl := fmt.Sprintf("https://api.telegram.org/bot%s", botToken)
+
+    updatesUrl := fmt.Sprintf("%s/getUpdates", baseUrl)
+
+    response, err := http.Get(updatesUrl)
+    if err != nil {
+        panic(err)
+    }
+    defer response.Body.Close()
+
+    // Parse the updates JSON
+    var updates TUpdate
+    err = json.NewDecoder(response.Body).Decode(&updates)
+    if err != nil {
+        panic(err)
+    }
+
+    uniqueChatIds := Distinct(Map(updates.Result, func(res TResult) int {
+         return res.Message.Chat.Id
+    }))
+
     url := fmt.Sprintf("%s/sendMessage", baseUrl)
 
-    body, _ := json.Marshal(map[string]string{
-        "chat_id": chatId,
-        "text":    message,
-        })
+    for _, id := range uniqueChatIds {
 
-    _, _ = http.Post(
-        url,
-        "application/json",
-        bytes.NewBuffer(body),
-        )
+        body, _ := json.Marshal(map[string]any{
+            "chat_id": id,
+            "text":    message,
+            })
 
-    logWithCurrentTime("Сповіщення доставлено.")
+        _, _ = http.Post(
+            url,
+            "application/json",
+            bytes.NewBuffer(body),
+            )
+
+        logWithCurrentTime(fmt.Sprintf("Сповіщення доставлено до %s", id))
+    }
 }
 
 func logWithCurrentTime(message string){

@@ -26,3 +26,15 @@ func Map[K any, T any](vs []K, f func(K) T) []T {
     }
     return vsf
 }
+
+func Distinct[K comparable](vs []K) []K{
+    unique := make(map[K]bool)
+    result := make([]K, 0, len(vs))
+    for _, val := range vs {
+        if !unique[val] {
+            unique[val] = true
+            result = append(result, val)
+        }
+    }
+    return result
+}
