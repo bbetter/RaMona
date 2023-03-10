@@ -1,0 +1,23 @@
+.env
+logs.txt
+
+ Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
+
+# Compiled Go binaries
+*.exe
+*.test
+*.out
+
+# Dependency directories (vendoring)
+/vendor/
+/Godeps/
+/.*_vendor/
+
+# Go metadata and caches
+/.go/
+/bin/
+/pkg/
+*.log
