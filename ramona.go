@@ -1,157 +1,186 @@
 package main
 
 import (
-    "bytes"
-    "encoding/json"
-    "flag"
-    "fmt"
-    "github.com/mmcdole/gofeed"
-    "golang.org/x/net/context"
-    "log"
-    "net/http"
-    "os"
-    "path/filepath"
-    "strings"
-    "time"
-)
-const feedUrl = "https://feeds.feedburner.com/gov/gnjU"
+	"bytes"
+	"encoding/csv"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
 
+	"github.com/mmcdole/gofeed"
+	"golang.org/x/net/context"
+)
+
+const feedUrl = "https://feeds.feedburner.com/gov/gnjU"
 
 func main() {
 
-    execPath, _ := os.Executable()
-    logFilePath := fmt.Sprintf("%s\\logs.txt",filepath.Dir(execPath))
+	execPath, _ := os.Executable()
+	logFilePath := fmt.Sprintf("%s\\logs.txt", filepath.Dir(execPath))
 
-    //setup logging
-    f, err := os.OpenFile(logFilePath, os.O_WRONLY | os.O_CREATE | os.O_APPEND, 0666)
-    if err != nil {
-        log.Fatal("Failed to open logs file")
-    }
-    defer f.Close()
-    log.SetOutput(f)
+	//setup logging
+	f, err := os.OpenFile(logFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatal("Failed to open logs file")
+	}
+	defer f.Close()
+	log.SetOutput(f)
 
-    // read variables
-    botToken := readEnvVars()
-    triggers := readFlags()
+	// read variables
+	botToken := readEnvVars()
+	triggers := readFlags()
 
-    logWithCurrentTime("\n Завантаження даних.")
+	logWithCurrentTime("\n Завантаження даних.")
 
-    allFeedItems := parseFeedItems()
-    logWithCurrentTime(fmt.Sprintf("Дані завантажено. Загальна к-сть: %d", len(allFeedItems)))
+	allFeedItems := parseFeedItems()
+	logWithCurrentTime(fmt.Sprintf("Дані завантажено. Загальна к-сть: %d", len(allFeedItems)))
 
-    logWithCurrentTime(fmt.Sprintf("Пошук...( %v )", triggers))
-    filteredFeedItems := filterByTriggers(allFeedItems, triggers)
-    logWithCurrentTime(fmt.Sprintf("Пошук завершено. К-сть співпадінь: %d", len(filteredFeedItems)))
+	logWithCurrentTime(fmt.Sprintf("Пошук...( %v )", triggers))
+	filteredFeedItems := filterByTriggers(allFeedItems, triggers)
+	logWithCurrentTime(fmt.Sprintf("Пошук завершено. К-сть співпадінь: %d", len(filteredFeedItems)))
 
-    if len(filteredFeedItems) == 0 {
-        return
-    }
+	if len(filteredFeedItems) == 0 {
+		return
+	}
 
-    messages := Map(filteredFeedItems, func(item *gofeed.Item) string {
-        return fmt.Sprintf("%s\n%s", item.Description, item.Link)
-    })
-    message := strings.Join(messages,"\n\n")
-    fmt.Print(message)
+	messages := Map(filteredFeedItems, func(item *gofeed.Item) string {
+		return fmt.Sprintf("%s\n%s", item.Description, item.Link)
+	})
+	message := strings.Join(messages, "\n\n")
 
-    if len(botToken) == 0 {
-        logWithCurrentTime("Відсутні змінні середовища для налаштування сповіщень.")
-        return
-    }
+	if len(botToken) == 0 {
+		logWithCurrentTime("Відсутні змінні середовища для налаштування сповіщень.")
+		return
+	}
 
-    sendToTelegram(botToken, message)
+	sendToTelegram(botToken, message)
 }
 
-func readEnvVars() (botToken string){
+func readEnvVars() (botToken string) {
 
-    botToken = os.Getenv("RANO_TELEGRAM_BOT_TOKEN")
+	botToken = os.Getenv("RANO_TELEGRAM_BOT_TOKEN")
 
-    return
+	return
 }
 
-func readFlags() (triggers []string){
-    triggersStr := flag.String("triggers", "", "список слів як можна використовувати для пошуку")
-    flag.Parse()
-    triggers = strings.Split(*triggersStr, " ")
+func readFlags() (triggers []string) {
+	triggersStr := flag.String("triggers", "", "список слів як можна використовувати для пошуку")
+	flag.Parse()
+	triggers = strings.Split(*triggersStr, " ")
 
-    return
+	return
 }
 
-func parseFeedItems() [] *gofeed.Item {
-    ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-    defer cancel()
-    fp := gofeed.NewParser()
-    feed, _ := fp.ParseURLWithContext(feedUrl, ctx)
-    return feed.Items
+func parseFeedItems() []*gofeed.Item {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	fp := gofeed.NewParser()
+	feed, _ := fp.ParseURLWithContext(feedUrl, ctx)
+	return feed.Items
 }
 
-func filterByTriggers(items [] *gofeed.Item, triggers [] string) [] *gofeed.Item{
+func filterByTriggers(items []*gofeed.Item, triggers []string) []*gofeed.Item {
 
+	return Filter(items, func(item *gofeed.Item) bool {
+		//equalfold not working!!
 
-    return Filter(items, func(item *gofeed.Item) bool {
-        //equalfold not working!!
+		titleLowercase := strings.ToLower(item.Title)
+		descLowercase := strings.ToLower(item.Description)
 
-        titleLowercase :=strings.ToLower(item.Title)
-        descLowercase := strings.ToLower(item.Description)
+		byTitle := Any(triggers, func(s string) bool {
+			return strings.Contains(titleLowercase, s)
+		})
 
-        byTitle := Any(triggers, func(s string) bool {
-            return strings.Contains(titleLowercase, s)
-        })
+		byDescription := Any(triggers, func(s string) bool {
+			return strings.Contains(descLowercase, s)
+		})
 
-        byDescription := Any(triggers, func(s string) bool {
-            return strings.Contains(descLowercase, s)
-        })
-
-        return byTitle || byDescription
-    })
+		return byTitle || byDescription
+	})
 }
 
-func sendToTelegram(botToken string,  message string)  {
+func sendToTelegram(botToken string, message string) {
+	var execPath, _ = os.Executable()
+	var filePath = fmt.Sprintf("%s\\users.csv", filepath.Dir(execPath))
+	//setup database
+	var f, err = os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		log.Fatal("Failed to open logs file")
+	}
+	defer f.Close()
 
+	reader := csv.NewReader(f)
+	writer := csv.NewWriter(f)
 
-    baseUrl := fmt.Sprintf("https://api.telegram.org/bot%s", botToken)
+	csvChatIdsStr, _ := reader.Read()
+	csvChatIds := Map(csvChatIdsStr, func(r string) int {
+		res, _ := strconv.Atoi(r)
+		return res
+	})
 
-    updatesUrl := fmt.Sprintf("%s/getUpdates", baseUrl)
+	logWithCurrentTime(fmt.Sprintf("К-сть підписників у файлі: %d", len(csvChatIds)))
+	logWithCurrentTime("Оновлюю підписників...")
 
-    response, err := http.Get(updatesUrl)
-    if err != nil {
-        panic(err)
-    }
-    defer response.Body.Close()
+	baseUrl := fmt.Sprintf("https://api.telegram.org/bot%s", botToken)
 
-    // Parse the updates JSON
-    var updates TUpdate
-    err = json.NewDecoder(response.Body).Decode(&updates)
-    if err != nil {
-        panic(err)
-    }
+	updatesUrl := fmt.Sprintf("%s/getUpdates", baseUrl)
 
-    uniqueChatIds := Distinct(Map(updates.Result, func(res TResult) int {
-         return res.Message.Chat.Id
-    }))
+	response, err := http.Get(updatesUrl)
+	if err != nil {
+		panic(err)
+	}
+	defer response.Body.Close()
 
-    url := fmt.Sprintf("%s/sendMessage", baseUrl)
+	// Parse the updates JSON
+	var updates TUpdate
+	err = json.NewDecoder(response.Body).Decode(&updates)
+	if err != nil {
+		panic(err)
+	}
 
-    for _, id := range uniqueChatIds {
+	netChatIds := Map(updates.Result, func(res TResult) int {
+		return res.Message.Chat.Id
+	})
 
-        body, _ := json.Marshal(map[string]any{
-            "chat_id": id,
-            "text":    message,
-            })
+	resultChatIds := Filter(Distinct(append(csvChatIds, netChatIds...)), func(n int) bool {
+		return n != 0
+	})
 
-        _, _ = http.Post(
-            url,
-            "application/json",
-            bytes.NewBuffer(body),
-            )
+	writer.Write(Map(resultChatIds, func(s int) string {
+		return strconv.Itoa(s)
+	}))
+	defer writer.Flush()
 
-        logWithCurrentTime(fmt.Sprintf("Сповіщення доставлено до %s", id))
-    }
+	url := fmt.Sprintf("%s/sendMessage", baseUrl)
+
+	for _, id := range resultChatIds {
+
+		body, _ := json.Marshal(map[string]any{
+			"chat_id": id,
+			"text":    message,
+		})
+
+		_, _ = http.Post(
+			url,
+			"application/json",
+			bytes.NewBuffer(body),
+		)
+
+		logWithCurrentTime(fmt.Sprintf("Сповіщення доставлено до %d", id))
+	}
 }
 
-func logWithCurrentTime(message string){
-    t := time.Now()
-    formattedTime := t.Format("02.01.2006 15:04")
+func logWithCurrentTime(message string) {
+	t := time.Now()
+	formattedTime := t.Format("02.01.2006 15:04")
 
-    fmt.Printf("%s# %s \n", formattedTime, message)
-    log.Printf("%s# %s \n", formattedTime, message)
+	fmt.Printf("%s# %s \n", formattedTime, message)
+	log.Printf("%s# %s \n", formattedTime, message)
 }
