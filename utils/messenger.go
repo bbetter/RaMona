@@ -11,6 +11,7 @@ import (
 type DeliveryCallback func(int) error
 
 func SendToTelegram(
+	chatId int,
 	message string,
 	onMessageDelivered DeliveryCallback,
 ) {

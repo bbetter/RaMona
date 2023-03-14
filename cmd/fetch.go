@@ -9,15 +9,24 @@ import (
 
 	"github.com/mmcdole/gofeed"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"owl.com/ramona/utils"
 )
 
-var triggers []string
-var telegram bool = false
+var filters []string
+var chats []int
 
 func init() {
-	fetchCmd.Flags().StringArrayVar(&triggers, "tgs", []string{""}, "space separated triggers")
-	fetchCmd.Flags().BoolVar(&telegram, "tel", false, "send to telegram bot")
+	fetchCmd.Flags().StringSliceVarP(&filters, "filters", "f", []string{""}, "space separated triggers")
+	fetchCmd.Flags().IntSliceVarP(&chats, "chats", "c", []int{}, "send to telegram bot")
+
+	viper.AddConfigPath("./.configs")
+	viper.SetConfigName("tg_bot_config")
+
+	viper.BindPFlags(fetchCmd.Flags())
+
+	viper.ReadInConfig()
+
 }
 
 var fetchCmd = &cobra.Command{
@@ -25,6 +34,9 @@ var fetchCmd = &cobra.Command{
 	Short: "fetch new laws",
 	Long:  `Fetch latest incoming laws`,
 	Run: func(cmd *cobra.Command, args []string) {
+
+		f_chats := viper.GetIntSlice("chats")
+		f_filters := viper.GetStringSlice("filters")
 
 		execPath, _ := os.Executable()
 		logFilePath := fmt.Sprintf("%s\\logs.txt", filepath.Dir(execPath))
@@ -42,9 +54,9 @@ var fetchCmd = &cobra.Command{
 		items := utils.ParseFeedItems()
 		utils.TimeLog(fmt.Sprintf("Дані завантажено. Загальна к-сть: %d", len(items)))
 
-		if len(triggers) != 0 {
-			utils.TimeLog(fmt.Sprintf("Пошук...( %v )", triggers))
-			items = utils.FilterByTriggers(items, triggers)
+		if len(filters) != 0 {
+			utils.TimeLog(fmt.Sprintf("Пошук...( %v )", f_filters))
+			items = utils.FilterByTriggers(items, f_filters)
 			utils.TimeLog(fmt.Sprintf("Пошук завершено. К-сть співпадінь: %d", len(items)))
 		}
 
@@ -55,12 +67,11 @@ var fetchCmd = &cobra.Command{
 
 		utils.TimeLog(message)
 
-		if telegram {
-			utils.SendToTelegram(message, func(i int) error {
-				utils.TimeLog(fmt.Sprintf("Message to chat %d delivered successfully", i))
+		for c := range f_chats {
+			utils.SendToTelegram(c, message, func(deliveredChatId int) error {
+				utils.TimeLog(fmt.Sprintf("Message to chat %d delivered successfully", deliveredChatId))
 				return nil
 			})
 		}
-
 	},
 }
