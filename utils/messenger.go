@@ -8,14 +8,7 @@ import (
 	"os"
 )
 
-type DeliveryCallback func(int) error
-
-func SendToTelegram(
-	chatId int,
-	message string,
-	onMessageDelivered DeliveryCallback,
-) {
-
+func PrintUpdates() {
 	botToken := os.Getenv("RANO_TELEGRAM_BOT_TOKEN")
 	baseUrl := fmt.Sprintf("https://api.telegram.org/bot%s", botToken)
 
@@ -25,34 +18,30 @@ func SendToTelegram(
 	if err != nil {
 		panic(err)
 	}
+	fmt.Print(response)
 	defer response.Body.Close()
+}
 
-	// Parse the updates JSON
-	var updates TUpdate
-	err = json.NewDecoder(response.Body).Decode(&updates)
-	if err != nil {
-		panic(err)
-	}
+func SendToTelegram(
+	chatId int,
+	message string,
+) error {
 
-	uniqueChatIds := Distinct(Map(updates.Result, func(res TResult) int {
-		return res.Message.Chat.Id
-	}))
+	botToken := os.Getenv("RANO_TELEGRAM_BOT_TOKEN")
+	baseUrl := fmt.Sprintf("https://api.telegram.org/bot%s", botToken)
 
 	url := fmt.Sprintf("%s/sendMessage", baseUrl)
 
-	for _, id := range uniqueChatIds {
+	body, _ := json.Marshal(map[string]any{
+		"chat_id": chatId,
+		"text":    message,
+	})
 
-		body, _ := json.Marshal(map[string]any{
-			"chat_id": id,
-			"text":    message,
-		})
+	_, err := http.Post(
+		url,
+		"application/json",
+		bytes.NewBuffer(body),
+	)
 
-		_, _ = http.Post(
-			url,
-			"application/json",
-			bytes.NewBuffer(body),
-		)
-
-		_ = onMessageDelivered(id)
-	}
+	return err
 }

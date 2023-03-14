@@ -65,13 +65,19 @@ var fetchCmd = &cobra.Command{
 		})
 		message := strings.Join(messages, "\n\n")
 
+		//highlight occurences
+		for _, filter := range f_filters {
+			message = strings.ReplaceAll(message, filter, fmt.Sprintf("*%s*", filter))
+		}
+
 		utils.TimeLog(message)
 
-		for c := range f_chats {
-			utils.SendToTelegram(c, message, func(deliveredChatId int) error {
-				utils.TimeLog(fmt.Sprintf("Message to chat %d delivered successfully", deliveredChatId))
-				return nil
-			})
+		for _, chatId := range f_chats {
+
+			err := utils.SendToTelegram(chatId, message)
+			if err == nil {
+				utils.TimeLog(fmt.Sprintf("Повідомлення до чату %d успішно доставлено", chatId))
+			}
 		}
 	},
 }
