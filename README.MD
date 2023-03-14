@@ -24,7 +24,12 @@ go build .
 To run RaMona, simply execute the following command:
 
 ```bash
-go run main.go --triggers "keyword1 keyword2"
+go run main.go fetch --filters/-f="keyword1,keyword2" --chats=1,2,3,4
+```
+or just prepare ./configs/tg_bot_config.yaml with
+```yaml
+filters: ["keyword1", "keyword2"],
+chats: [1,2,3,,4]
 ```
 
 ## Configuration
