@@ -33,8 +33,9 @@ func SendToTelegram(
 	url := fmt.Sprintf("%s/sendMessage", baseUrl)
 
 	body, _ := json.Marshal(map[string]any{
-		"chat_id": chatId,
-		"text":    message,
+		"chat_id":    chatId,
+		"text":       message,
+		"parse_mode": "HTML",
 	})
 
 	_, err := http.Post(

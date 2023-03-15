@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/mmcdole/gofeed"
@@ -66,11 +67,11 @@ var fetchCmd = &cobra.Command{
 		message := strings.Join(messages, "\n\n")
 
 		//highlight occurences
+		var f_regexp *regexp.Regexp
 		for _, filter := range f_filters {
-			message = strings.ReplaceAll(message, filter, fmt.Sprintf("*%s*", filter))
+			f_regexp = regexp.MustCompile(fmt.Sprintf(`(?i)%s`, filter))
+			message = f_regexp.ReplaceAllString(message, fmt.Sprintf("<b><u>%s</u></b>", strings.ToUpper(filter)))
 		}
-
-		utils.TimeLog(message)
 
 		for _, chatId := range f_chats {
 
