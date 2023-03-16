@@ -170,7 +170,7 @@ func PrepareMessage(filters []string, chatId int64) tgbotapi.MessageConfig {
 	}
 
 	if len(items) == 0 {
-		msg := tgbotapi.NewMessage(chatId, "Нажаль я <b><u>НІЧОГО</u></b не знайшов спробуй інші слова. :()")
+		msg := tgbotapi.NewMessage(chatId, "Нажаль я <b><u>НІЧОГО</u></b> не знайшов спробуй інші слова. :()")
 		msg.ParseMode = "HTML"
 		return msg
 	}
