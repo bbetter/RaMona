@@ -120,19 +120,27 @@ var serverCmd = &cobra.Command{
 						case <-config[input.Chat.ID].c:
 							return
 						default:
-							time.Sleep(10 * time.Second)
 							var cfg = config[input.Chat.ID]
 							message = PrepareMessage(
 								cfg.filters,
 								input.Chat.ID,
 							)
 							bot.Send(message)
+							time.Sleep(24 * 60 * 60 * time.Second)
 							// Do other stuff
 						}
 					}
 				}()
+				message = tgbotapi.NewMessage(
+					input.Chat.ID,
+					fmt.Sprintf("Без питань - наступний апдейт за добу"),
+				)
 
 			case "unsubscribe":
+				message = tgbotapi.NewMessage(
+					input.Chat.ID,
+					fmt.Sprintf("Без питань - після останнього сповіщення відпишусь"),
+				)
 				config[input.Chat.ID].c <- true
 
 			default:
