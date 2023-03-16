@@ -8,6 +8,7 @@ func init() {
 
 	rootCmd.AddCommand(fetchCmd)
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(serverCmd)
 }
 
 var rootCmd = &cobra.Command{
