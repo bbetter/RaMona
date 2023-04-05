@@ -61,7 +61,7 @@ var serverCmd = &cobra.Command{
 		// Tell Telegram we should wait up to 30 seconds on each request for an
 		// update. This way we can get information just as quickly as making many
 		// frequent requests without having to send nearly as many.
-		updateConfig.Timeout = 30
+		updateConfig.Timeout = 60
 
 		// Start polling Telegram for updates.
 		updates := bot.GetUpdatesChan(updateConfig)
@@ -133,13 +133,13 @@ var serverCmd = &cobra.Command{
 				}()
 				message = tgbotapi.NewMessage(
 					input.Chat.ID,
-					fmt.Sprintf("Без питань - наступний апдейт за добу"),
+					"Без питань - наступний апдейт за добу",
 				)
 
 			case "unsubscribe":
 				message = tgbotapi.NewMessage(
 					input.Chat.ID,
-					fmt.Sprintf("Без питань - після останнього сповіщення відпишусь"),
+					"Без питань - після останнього сповіщення відпишусь",
 				)
 				config[input.Chat.ID].c <- true
 
