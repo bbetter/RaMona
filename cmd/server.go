@@ -44,7 +44,9 @@ var serverCmd = &cobra.Command{
 			log.Fatal("Failed to open logs file")
 		}
 		log.SetOutput(f)
-		defer f.Close()
+		defer func(f *os.File) {
+			_ = f.Close()
+		}(f)
 
 		bot, err := tgbotapi.NewBotAPI(os.Getenv("RANO_TELEGRAM_BOT_TOKEN"))
 		if err != nil {
@@ -95,7 +97,7 @@ var serverCmd = &cobra.Command{
 				)
 			case "fetch":
 				var cfg = config[input.Chat.ID]
-				message = prepare_message(
+				message = prepareMessage(
 					cfg.filters,
 					input.Chat.ID,
 				)
@@ -108,11 +110,11 @@ var serverCmd = &cobra.Command{
 							return
 						default:
 							var cfg = config[input.Chat.ID]
-							message = prepare_message(
+							message = prepareMessage(
 								cfg.filters,
 								input.Chat.ID,
 							)
-							bot.Send(message)
+							_, _ = bot.Send(message)
 							time.Sleep(60 * 60 * time.Second)
 							// Do other stuff
 						}
@@ -143,7 +145,7 @@ var serverCmd = &cobra.Command{
 	},
 }
 
-func prepare_message(filters []string, chatId int64) tgbotapi.MessageConfig {
+func prepareMessage(filters []string, chatId int64) tgbotapi.MessageConfig {
 	utils.TimeLog("\n Завантаження даних.")
 
 	items := utils.ParseFeedItems()
@@ -168,10 +170,10 @@ func prepare_message(filters []string, chatId int64) tgbotapi.MessageConfig {
 	message := strings.Join(messages, "\n\n")
 
 	//highlight occurences
-	var f_regexp *regexp.Regexp
+	var fRegexp *regexp.Regexp
 	for _, filter := range filters {
-		f_regexp = regexp.MustCompile(fmt.Sprintf(`(?i)%s`, filter))
-		message = f_regexp.ReplaceAllString(message, fmt.Sprintf("<b><u>%s</u></b>", strings.ToUpper(filter)))
+		fRegexp = regexp.MustCompile(fmt.Sprintf(`(?i)%s`, filter))
+		message = fRegexp.ReplaceAllString(message, fmt.Sprintf("<b><u>%s</u></b>", strings.ToUpper(filter)))
 	}
 
 	msg := tgbotapi.NewMessage(chatId, message)
