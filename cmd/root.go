@@ -16,7 +16,7 @@ var rootCmd = &cobra.Command{
 	Short: "RaMona is law monitor",
 	Long:  `RaMona is ukrainian rada.gov.ua latest laws monitor`,
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		_ = cmd.Help()
 	},
 }
 

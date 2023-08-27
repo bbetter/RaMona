@@ -1,7 +1,7 @@
 package utils
 
-func Filter[K any](vs []K, f func(K) bool) []K {
-	vsf := make([]K, 0)
+func Filter[Item any](vs []Item, f func(Item) bool) []Item {
+	vsf := make([]Item, 0)
 	for _, v := range vs {
 		if f(v) {
 			vsf = append(vsf, v)
@@ -10,7 +10,7 @@ func Filter[K any](vs []K, f func(K) bool) []K {
 	return vsf
 }
 
-func Any[K any](vs []K, f func(K) bool) bool {
+func Any[Item any](vs []Item, f func(Item) bool) bool {
 	for _, v := range vs {
 		if f(v) {
 			return true
@@ -19,17 +19,17 @@ func Any[K any](vs []K, f func(K) bool) bool {
 	return false
 }
 
-func Map[K any, T any](vs []K, f func(K) T) []T {
-	vsf := make([]T, 0)
+func Map[Item1 any, Item2 any](vs []Item1, f func(Item1) Item2) []Item2 {
+	vsf := make([]Item2, 0)
 	for _, v := range vs {
 		vsf = append(vsf, f(v))
 	}
 	return vsf
 }
 
-func Distinct[K comparable](vs []K) []K {
-	unique := make(map[K]bool)
-	result := make([]K, 0, len(vs))
+func Distinct[Item comparable](vs []Item) []Item {
+	unique := make(map[Item]bool)
+	result := make([]Item, 0, len(vs))
 	for _, val := range vs {
 		if !unique[val] {
 			unique[val] = true

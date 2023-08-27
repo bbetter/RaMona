@@ -36,8 +36,8 @@ var fetchCmd = &cobra.Command{
 	Long:  `Fetch latest incoming laws`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		f_chats := viper.GetIntSlice("chats")
-		f_filters := viper.GetStringSlice("filters")
+		chats := viper.GetIntSlice("chats")
+		filters := viper.GetStringSlice("filters")
 
 		execPath, _ := os.Executable()
 		logFilePath := fmt.Sprintf("%s\\logs.txt", filepath.Dir(execPath))
@@ -56,8 +56,8 @@ var fetchCmd = &cobra.Command{
 		utils.TimeLog(fmt.Sprintf("Дані завантажено. Загальна к-сть: %d", len(items)))
 
 		if len(filters) != 0 {
-			utils.TimeLog(fmt.Sprintf("Пошук...( %v )", f_filters))
-			items = utils.FilterByTriggers(items, f_filters)
+			utils.TimeLog(fmt.Sprintf("Пошук...( %v )", filters))
+			items = utils.FilterByTriggers(items, filters)
 			utils.TimeLog(fmt.Sprintf("Пошук завершено. К-сть співпадінь: %d", len(items)))
 		}
 
@@ -67,13 +67,13 @@ var fetchCmd = &cobra.Command{
 		message := strings.Join(messages, "\n\n")
 
 		//highlight occurences
-		var f_regexp *regexp.Regexp
-		for _, filter := range f_filters {
-			f_regexp = regexp.MustCompile(fmt.Sprintf(`(?i)%s`, filter))
-			message = f_regexp.ReplaceAllString(message, fmt.Sprintf("<b><u>%s</u></b>", strings.ToUpper(filter)))
+		var fRegexp *regexp.Regexp
+		for _, filter := range filters {
+			fRegexp = regexp.MustCompile(fmt.Sprintf(`(?i)%s`, filter))
+			message = fRegexp.ReplaceAllString(message, fmt.Sprintf("<b><u>%s</u></b>", strings.ToUpper(filter)))
 		}
 
-		for _, chatId := range f_chats {
+		for _, chatId := range chats {
 
 			err := utils.SendToTelegram(chatId, message)
 			if err == nil {

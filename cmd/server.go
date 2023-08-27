@@ -52,34 +52,21 @@ var serverCmd = &cobra.Command{
 		}
 
 		bot.Debug = true
-
-		// Create a new UpdateConfig struct with an offset of 0. Offsets are used
-		// to make sure Telegram knows we've handled previous values and we don't
-		// need them repeated.
 		updateConfig := tgbotapi.NewUpdate(0)
-
-		// Tell Telegram we should wait up to 30 seconds on each request for an
-		// update. This way we can get information just as quickly as making many
-		// frequent requests without having to send nearly as many.
 		updateConfig.Timeout = 60
-
-		// Start polling Telegram for updates.
 		updates := bot.GetUpdatesChan(updateConfig)
-
-		// Let's go through each update that we're getting from Telegram.
 		for update := range updates {
-			if update.Message == nil { // ignore any non-Message updates
+			if update.Message == nil {
 				continue
 			}
 
-			if !update.Message.IsCommand() { // ignore any non-command Messages
+			if !update.Message.IsCommand() {
 				continue
 			}
 
 			var input = update.Message
 
 			var message tgbotapi.MessageConfig
-			// Extract the command from the Message.
 			switch input.Command() {
 			case "start":
 				config[input.Chat.ID] = UserConfig{
@@ -108,7 +95,7 @@ var serverCmd = &cobra.Command{
 				)
 			case "fetch":
 				var cfg = config[input.Chat.ID]
-				message = PrepareMessage(
+				message = prepare_message(
 					cfg.filters,
 					input.Chat.ID,
 				)
@@ -121,12 +108,12 @@ var serverCmd = &cobra.Command{
 							return
 						default:
 							var cfg = config[input.Chat.ID]
-							message = PrepareMessage(
+							message = prepare_message(
 								cfg.filters,
 								input.Chat.ID,
 							)
 							bot.Send(message)
-							time.Sleep(24 * 60 * 60 * time.Second)
+							time.Sleep(60 * 60 * time.Second)
 							// Do other stuff
 						}
 					}
@@ -151,13 +138,12 @@ var serverCmd = &cobra.Command{
 			}
 
 			if _, err := bot.Send(message); err != nil {
-				// log.Panic(err)
 			}
 		}
 	},
 }
 
-func PrepareMessage(filters []string, chatId int64) tgbotapi.MessageConfig {
+func prepare_message(filters []string, chatId int64) tgbotapi.MessageConfig {
 	utils.TimeLog("\n Завантаження даних.")
 
 	items := utils.ParseFeedItems()
