@@ -1,18 +1,16 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/mmcdole/gofeed"
 	"github.com/spf13/cobra"
-	"owl.com/ramona/utils"
 )
 
 type UserConfig struct {
@@ -48,7 +46,7 @@ var serverCmd = &cobra.Command{
 			_ = f.Close()
 		}(f)
 
-		bot, err := tgbotapi.NewBotAPI(os.Getenv("RANO_TELEGRAM_BOT_TOKEN"))
+		bot, err := tgbotapi.NewBotAPI(os.Getenv("RAMONA_TELEGRAM_BOT_TOKEN"))
 		if err != nil {
 			panic(err)
 		}
@@ -97,10 +95,9 @@ var serverCmd = &cobra.Command{
 				)
 			case "fetch":
 				var cfg = config[input.Chat.ID]
-				message = prepareMessage(
-					cfg.filters,
-					input.Chat.ID,
-				)
+				result := fetchResultsAsString(cmd, cfg.filters)
+				message = tgbotapi.NewMessage(input.Chat.ID, result)
+				_, _ = bot.Send(message)
 			case "subscribe":
 
 				go func() {
@@ -110,10 +107,9 @@ var serverCmd = &cobra.Command{
 							return
 						default:
 							var cfg = config[input.Chat.ID]
-							message = prepareMessage(
-								cfg.filters,
-								input.Chat.ID,
-							)
+							result := fetchResultsAsString(cmd, cfg.filters)
+							message := tgbotapi.NewMessage(input.Chat.ID, result)
+							message.ParseMode = "HTML"
 							_, _ = bot.Send(message)
 							time.Sleep(60 * 60 * time.Second)
 							// Do other stuff
@@ -122,13 +118,13 @@ var serverCmd = &cobra.Command{
 				}()
 				message = tgbotapi.NewMessage(
 					input.Chat.ID,
-					"Без питань - наступний апдейт за добу",
+					"Без питань, наступний апдейт за добу",
 				)
 
 			case "unsubscribe":
 				message = tgbotapi.NewMessage(
 					input.Chat.ID,
-					"Без питань - після останнього сповіщення відпишусь",
+					"Без питань, після останнього сповіщення відпишусь",
 				)
 				config[input.Chat.ID].c <- true
 
@@ -139,44 +135,20 @@ var serverCmd = &cobra.Command{
 				)
 			}
 
+			message.ParseMode = "HTML"
 			if _, err := bot.Send(message); err != nil {
 			}
 		}
 	},
 }
 
-func prepareMessage(filters []string, chatId int64) tgbotapi.MessageConfig {
-	utils.TimeLog("\n Завантаження даних.")
+func fetchResultsAsString(cmd *cobra.Command, filters []string) string {
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	fetchArgs := make([]string, 2)
+	fetchArgs[0] = "--filters"
+	fetchArgs[1] = strings.Join(filters, ",")
 
-	items := utils.ParseFeedItems()
-	utils.TimeLog(fmt.Sprintf("Дані завантажено. Загальна к-сть: %d", len(items)))
-
-	if len(filters) != 0 {
-		utils.TimeLog(fmt.Sprintf("Пошук...( %v )", filters))
-		items = utils.FilterByTriggers(items, filters)
-		utils.TimeLog(fmt.Sprintf("Пошук завершено. К-сть співпадінь: %d", len(items)))
-	}
-
-	if len(items) == 0 {
-		msg := tgbotapi.NewMessage(chatId, "Нажаль я <b><u>НІЧОГО</u></b> не знайшов спробуй інші слова. :()")
-		msg.ParseMode = "HTML"
-		return msg
-	}
-
-	messages := utils.Map(items, func(item *gofeed.Item) string {
-		return fmt.Sprintf("%s\n%s", item.Description, item.Link)
-	})
-
-	message := strings.Join(messages, "\n\n")
-
-	//highlight occurences
-	var fRegexp *regexp.Regexp
-	for _, filter := range filters {
-		fRegexp = regexp.MustCompile(fmt.Sprintf(`(?i)%s`, filter))
-		message = fRegexp.ReplaceAllString(message, fmt.Sprintf("<b><u>%s</u></b>", strings.ToUpper(filter)))
-	}
-
-	msg := tgbotapi.NewMessage(chatId, message)
-	msg.ParseMode = "HTML"
-	return msg
+	fetchCmd.Run(cmd, fetchArgs)
+	return buf.String()
 }

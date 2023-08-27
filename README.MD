@@ -24,15 +24,10 @@ go build .
 To run RaMona, simply execute the following command:
 
 ```bash
-go run main.go fetch --filters/-f="keyword1,keyword2" --chats=1,2,3,4
-```
-or just prepare ./configs/tg_bot_config.yaml with
-```yaml
-filters: ["keyword1", "keyword2"],
-chats: [1,2,3,,4]
+go run main.go fetch --filters/-f="keyword1,keyword2"
 ```
 
 ## Configuration
 
-RaMona can be configured to send notifications to a Telegram chat. To enable this feature, set the *RANO_TELEGRAM_BOT_TOKEN* environment variables to the appropriate values for your Telegram bot and chat, respectively.
+RaMona can be configured to send notifications to a Telegram chat. To enable this feature, set the *RAMONA_TELEGRAM_BOT_TOKEN* environment variables to the appropriate values for your Telegram bot and chat, respectively.
 

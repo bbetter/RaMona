@@ -15,19 +15,9 @@ import (
 )
 
 var filters []string
-var chats []int
 
 func init() {
 	fetchCmd.Flags().StringSliceVarP(&filters, "filters", "f", []string{""}, "space separated triggers")
-	fetchCmd.Flags().IntSliceVarP(&chats, "chats", "c", []int{}, "send to telegram bot")
-
-	viper.AddConfigPath("./.configs")
-	viper.SetConfigName("tg_bot_config")
-
-	viper.BindPFlags(fetchCmd.Flags())
-
-	viper.ReadInConfig()
-
 }
 
 var fetchCmd = &cobra.Command{
@@ -35,8 +25,6 @@ var fetchCmd = &cobra.Command{
 	Short: "fetch new laws",
 	Long:  `Fetch latest incoming laws`,
 	Run: func(cmd *cobra.Command, args []string) {
-
-		chats := viper.GetIntSlice("chats")
 		filters := viper.GetStringSlice("filters")
 
 		execPath, _ := os.Executable()
@@ -73,12 +61,8 @@ var fetchCmd = &cobra.Command{
 			message = fRegexp.ReplaceAllString(message, fmt.Sprintf("<b><u>%s</u></b>", strings.ToUpper(filter)))
 		}
 
-		for _, chatId := range chats {
-
-			err := utils.SendToTelegram(chatId, message)
-			if err == nil {
-				utils.TimeLog(fmt.Sprintf("Повідомлення до чату %d успішно доставлено", chatId))
-			}
-		}
+		cmd.OutOrStdout().Write([]byte(message))
+		cmd.OutOrStderr().Write([]byte(message))
+		cmd.Print(message)
 	},
 }
