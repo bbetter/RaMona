@@ -1,14 +1,12 @@
 package cmd
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/spf13/cobra"
 )
@@ -95,9 +93,13 @@ var serverCmd = &cobra.Command{
 				)
 			case "fetch":
 				var cfg = config[input.Chat.ID]
-				result := fetchResultsAsString(cmd, cfg.filters)
-				message = tgbotapi.NewMessage(input.Chat.ID, result)
-				_, _ = bot.Send(message)
+				results := fetchSplitResultsForTelegramBot(cfg.filters)
+
+				for _, result := range results {
+					message = tgbotapi.NewMessage(input.Chat.ID, result)
+					_, _ = bot.Send(message)
+				}
+
 			case "subscribe":
 
 				go func() {
@@ -107,10 +109,13 @@ var serverCmd = &cobra.Command{
 							return
 						default:
 							var cfg = config[input.Chat.ID]
-							result := fetchResultsAsString(cmd, cfg.filters)
-							message := tgbotapi.NewMessage(input.Chat.ID, result)
-							message.ParseMode = "HTML"
-							_, _ = bot.Send(message)
+							results := fetchSplitResultsForTelegramBot(cfg.filters)
+							for _, result := range results {
+								message := tgbotapi.NewMessage(input.Chat.ID, result)
+								message.ParseMode = "HTML"
+								_, _ = bot.Send(message)
+							}
+
 							time.Sleep(60 * 60 * time.Second)
 							// Do other stuff
 						}
@@ -142,13 +147,54 @@ var serverCmd = &cobra.Command{
 	},
 }
 
-func fetchResultsAsString(cmd *cobra.Command, filters []string) string {
-	buf := new(bytes.Buffer)
-	cmd.SetOut(buf)
-	fetchArgs := make([]string, 2)
-	fetchArgs[0] = "--filters"
-	fetchArgs[1] = strings.Join(filters, ",")
+const maxChunkSize = 4096
 
-	fetchCmd.Run(cmd, fetchArgs)
-	return buf.String()
+func splitTextIntoChunks(input string) []string {
+		var chunks []string
+	openingTags := []string{"<b>", "<u>"}
+
+	var currentChunk strings.Builder
+	currentSize := 0
+
+	for _, word := range strings.Fields(input) {
+		tagFound := false
+
+		for _, tag := range openingTags {
+			if strings.HasPrefix(word, tag) && !strings.HasSuffix(word, ">") {
+				tagFound = true
+				if currentSize+len(word) > maxChunkSize {
+					chunks = append(chunks, currentChunk.String())
+					currentChunk.Reset()
+					currentSize = 0
+				}
+			}
+		}
+
+		if tagFound {
+			currentChunk.WriteString(word)
+			currentSize += len(word)
+		} else {
+			if currentSize+len(word)+1 > maxChunkSize {
+				chunks = append(chunks, currentChunk.String())
+				currentChunk.Reset()
+				currentSize = 0
+			}
+			if currentChunk.Len() > 0 {
+				currentChunk.WriteString(" ")
+			}
+			currentChunk.WriteString(word)
+			currentSize += len(word) + 1
+		}
+	}
+
+	if currentChunk.Len() > 0 {
+		chunks = append(chunks, currentChunk.String())
+	}
+
+	return chunks
+}
+
+func fetchSplitResultsForTelegramBot(filters []string) []string {
+	result := FetchLawItems(filters)
+	return splitTextIntoChunks(result)
 }
