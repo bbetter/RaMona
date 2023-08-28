@@ -23,3 +23,7 @@ logs.txt
 /bin/
 /pkg/
 *.log
+
+.fleet/*
+*.sum
+ramona
